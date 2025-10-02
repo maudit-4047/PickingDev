@@ -1,0 +1,14 @@
+# FastAPI: Web framework for building APIs
+fastapi
+# Uvicorn: ASGI server to run FastAPI apps (standard includes extras)
+uvicorn[standard]
+# SQLAlchemy: ORM for database models and queries
+sqlalchemy
+# psycopg2-binary: PostgreSQL database driver for Python
+psycopg2-binary
+# Alembic: Database migrations for SQLAlchemy
+alembic
+# python-dotenv: Loads environment variables from .env files
+python-dotenv
+# pytest: Testing framework for unit and integration tests
+pytest
