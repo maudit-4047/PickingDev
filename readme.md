@@ -8,14 +8,11 @@ Welcome to the main hub of all ongoing and future project ideas under the **Pick
 ## ✅ Active Projects
 
 ### 1. **VoicePicker** 🎧
-A voice picking assistant with ethical performance handling and better worker support.
+Created by a real voice picker at Primary Connect (Woolworths Supply Chain & Logistics Division)
 
-- Whisper-based voice command system
-- Spill incident logging with voice or tap
-- OT announcement based on worker stats
-- Anonymous panic button to request help
-- Ethical performance mode (no panic-inducing stats)
-- Modular & cloud-deployable
+Project Overview
+This project is an all-in-one Warehouse Management System (WMS) inspired by real daily operations at Primary Connect. It features built-in support for voice-driven picking, modular backend architecture, real-time inventory and dispatch updates, and a team leader dashboard.
+It’s designed to reflect real warehouse workflows and is part of a broader PickingDev series of projects focused on modernizing and automating supply chain operations.
 
 ---
 
