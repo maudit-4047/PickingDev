@@ -1,10 +1,10 @@
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Body
 from pydantic import BaseModel
 from typing import List, Optional
 import sys
 import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'database')))
-from db_cofig import supabase
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'modules')))
+from auth import create_worker as create_worker_logic, get_workers as get_workers_logic, get_worker as get_worker_logic, update_worker as update_worker_logic, delete_worker as delete_worker_logic, login_worker as login_worker_logic
 
 router = APIRouter()
 
@@ -26,40 +26,58 @@ class WorkerOut(BaseModel):
     created_at: Optional[str]
     updated_at: Optional[str]
 
+class LoginRequest(BaseModel):
+    name: str
+    pin: str
+
+class WorkerUpdate(BaseModel):
+    name: Optional[str] = None
+    team_id: Optional[int] = None
+    pin: Optional[str] = None
+    voice_ref: Optional[str] = None
+    role: Optional[str] = None
+    status: Optional[str] = None
+
 @router.post('/workers', response_model=WorkerOut, status_code=status.HTTP_201_CREATED)
 def create_worker(worker: WorkerCreate):
-    data = worker.dict()
-    data['status'] = 'active'
-    response = supabase.table('workers').insert(data).execute()
-    if response.error:
-        raise HTTPException(status_code=400, detail=response.error.message)
-    return response.data[0]
+    try:
+        return create_worker_logic(worker.dict())
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.get('/workers', response_model=List[WorkerOut])
 def get_workers():
-    response = supabase.table('workers').select('*').execute()
-    if response.error:
-        raise HTTPException(status_code=400, detail=response.error.message)
-    return response.data
+    try:
+        return get_workers_logic()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.get('/workers/{worker_id}', response_model=WorkerOut)
 def get_worker(worker_id: int):
-    response = supabase.table('workers').select('*').eq('id', worker_id).single().execute()
-    if response.error:
-        raise HTTPException(status_code=404, detail='Worker not found')
-    return response.data
+    try:
+        return get_worker_logic(worker_id)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 @router.patch('/workers/{worker_id}', response_model=WorkerOut)
-def update_worker(worker_id: int, worker: WorkerCreate):
-    data = worker.dict(exclude_unset=True)
-    response = supabase.table('workers').update(data).eq('id', worker_id).execute()
-    if response.error:
-        raise HTTPException(status_code=400, detail=response.error.message)
-    return response.data[0]
+def update_worker(worker_id: int, worker: WorkerUpdate):
+    try:
+        return update_worker_logic(worker_id, worker.dict(exclude_unset=True))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.delete('/workers/{worker_id}', status_code=status.HTTP_204_NO_CONTENT)
 def delete_worker(worker_id: int):
-    response = supabase.table('workers').delete().eq('id', worker_id).execute()
-    if response.error:
-        raise HTTPException(status_code=400, detail=response.error.message)
-    return None
+    try:
+        delete_worker_logic(worker_id)
+        return None
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post('/login')
+def login(request: LoginRequest = Body(...)):
+    try:
+        token = login_worker_logic(request.name, request.pin)
+        return {"token": token}
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=str(e))
