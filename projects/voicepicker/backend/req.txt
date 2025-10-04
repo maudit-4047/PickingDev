@@ -12,3 +12,6 @@ alembic
 python-dotenv
 # pytest: Testing framework for unit and integration tests
 pytest
+
+# supabase-py: Official Python client for Supabase API
+supabase

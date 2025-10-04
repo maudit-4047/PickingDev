@@ -1,0 +1,17 @@
+
+CREATE TABLE locations (
+	id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+	code VARCHAR(50) UNIQUE NOT NULL,          -- e.g., BIN-123, DOCK-2
+	zone VARCHAR(50),
+	description TEXT,
+	created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE inventory (
+	id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+	item_code VARCHAR(100) NOT NULL,
+	description TEXT,
+	quantity INT DEFAULT 0,
+	location_id BIGINT REFERENCES locations(id),
+	updated_at TIMESTAMP DEFAULT NOW()
+);
