@@ -11,8 +11,11 @@ def create_worker(data: Dict) -> Dict:
     return response.data[0]
 
 
-def get_workers() -> List[Dict]:
-    response = supabase.table('workers').select('*').execute()
+def get_workers(team_id: int = None) -> List[Dict]:
+    query = supabase.table('workers').select('*')
+    if team_id is not None:
+        query = query.eq('team_id', team_id)
+    response = query.execute()
     if hasattr(response, 'error') and response.error:
         raise Exception(response.error.message)
     return response.data

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Body
+from fastapi import APIRouter, HTTPException, status, Body, Query
 from pydantic import BaseModel
 from typing import List, Optional
 import sys
@@ -46,8 +46,10 @@ def create_worker(worker: WorkerCreate):
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get('/workers', response_model=List[WorkerOut])
-def get_workers():
+def get_workers(team_id: Optional[int] = Query(None)):
     try:
+        if team_id is not None:
+            return get_workers_logic(team_id=team_id)
         return get_workers_logic()
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
