@@ -1,25 +1,26 @@
+
 from typing import Optional, List, Dict
 from database.db_cofig import supabase
+from modules.config import get_config_value
 import random
 
 # Business logic for workers
 
-PIN_MIN = 1000
-PIN_MAX = 9999
-TEAM_MAX_MEMBERS = 50
-
 def generate_unique_pin():
+    pin_min = get_config_value('pin_min', 1000)
+    pin_max = get_config_value('pin_max', 9999)
     used_pins_response = supabase.table('workers').select('pin').execute()
     if hasattr(used_pins_response, 'error') and used_pins_response.error:
         raise Exception(used_pins_response.error.message)
     used_pins = {w['pin'] for w in used_pins_response.data if w.get('pin') is not None}
-    for pin in range(PIN_MIN, PIN_MAX + 1):
+    for pin in range(pin_min, pin_max + 1):
         if pin not in used_pins:
             return pin
     raise Exception('No available pins in the configured range')
 
 def get_or_create_team():
-    # Find a team with less than TEAM_MAX_MEMBERS
+    team_max_members = get_config_value('team_size_cap', 50)
+    # Find a team with less than team_max_members
     teams_response = supabase.table('teams').select('id').execute()
     if hasattr(teams_response, 'error') and teams_response.error:
         raise Exception(teams_response.error.message)
@@ -27,7 +28,7 @@ def get_or_create_team():
         count_response = supabase.table('workers').select('id', count='exact').eq('team_id', team['id']).execute()
         if hasattr(count_response, 'error') and count_response.error:
             raise Exception(count_response.error.message)
-        if count_response.count is not None and count_response.count < TEAM_MAX_MEMBERS:
+        if count_response.count is not None and count_response.count < team_max_members:
             return team['id']
     # If all teams are full, create a new team
     new_team_name = f"Team {len(teams_response.data) + 1}"
