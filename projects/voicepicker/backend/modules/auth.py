@@ -9,11 +9,14 @@ PIN_MAX = 9999
 TEAM_MAX_MEMBERS = 50
 
 def generate_unique_pin():
-    while True:
-        pin = random.randint(PIN_MIN, PIN_MAX)
-        response = supabase.table('workers').select('pin').eq('pin', pin).execute()
-        if not response.data:
+    used_pins_response = supabase.table('workers').select('pin').execute()
+    if hasattr(used_pins_response, 'error') and used_pins_response.error:
+        raise Exception(used_pins_response.error.message)
+    used_pins = {w['pin'] for w in used_pins_response.data if w.get('pin') is not None}
+    for pin in range(PIN_MIN, PIN_MAX + 1):
+        if pin not in used_pins:
             return pin
+    raise Exception('No available pins in the configured range')
 
 def get_or_create_team():
     # Find a team with less than TEAM_MAX_MEMBERS
