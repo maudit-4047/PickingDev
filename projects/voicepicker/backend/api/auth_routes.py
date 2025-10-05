@@ -92,14 +92,14 @@ def get_worker_by_pin(pin: int):
 @router.patch('/workers/pin/{pin}', response_model=WorkerOut)
 def update_worker_by_pin(pin: int, worker: WorkerUpdate):
     try:
-        return update_worker_logic(pin, worker.dict(exclude_unset=True))
+        return update_worker_logic(pin=pin, data=worker.dict(exclude_unset=True))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.delete('/workers/pin/{pin}', status_code=status.HTTP_204_NO_CONTENT)
 def delete_worker_by_pin(pin: int):
     try:
-        delete_worker_logic(pin)
+        delete_worker_logic(pin=pin)
         return None
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

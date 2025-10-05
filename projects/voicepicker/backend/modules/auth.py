@@ -18,22 +18,43 @@ def get_workers() -> List[Dict]:
     return response.data
 
 
-def get_worker(worker_id: int) -> Dict:
-    response = supabase.table('workers').select('*').eq('id', worker_id).single().execute()
+def get_worker(worker_id: int = None, pin: int = None) -> Dict:
+    query = supabase.table('workers').select('*')
+    if worker_id is not None:
+        query = query.eq('id', worker_id)
+    elif pin is not None:
+        query = query.eq('pin', pin)
+    else:
+        raise Exception('Must provide worker_id or pin')
+    response = query.single().execute()
     if hasattr(response, 'error') and response.error:
         raise Exception('Worker not found')
     return response.data
 
 
-def update_worker(worker_id: int, data: Dict) -> Dict:
-    response = supabase.table('workers').update(data).eq('id', worker_id).execute()
+def update_worker(worker_id: int = None, pin: int = None, data: Dict = None) -> Dict:
+    query = supabase.table('workers')
+    if worker_id is not None:
+        query = query.update(data).eq('id', worker_id)
+    elif pin is not None:
+        query = query.update(data).eq('pin', pin)
+    else:
+        raise Exception('Must provide worker_id or pin')
+    response = query.execute()
     if hasattr(response, 'error') and response.error:
         raise Exception(response.error.message)
     return response.data[0]
 
 
-def delete_worker(worker_id: int) -> None:
-    response = supabase.table('workers').delete().eq('id', worker_id).execute()
+def delete_worker(worker_id: int = None, pin: int = None) -> None:
+    query = supabase.table('workers')
+    if worker_id is not None:
+        query = query.delete().eq('id', worker_id)
+    elif pin is not None:
+        query = query.delete().eq('pin', pin)
+    else:
+        raise Exception('Must provide worker_id or pin')
+    response = query.execute()
     if hasattr(response, 'error') and response.error:
         raise Exception(response.error.message)
     return None
