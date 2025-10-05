@@ -1,5 +1,5 @@
 from typing import Optional, List, Dict
-from db_config import supabase
+from database.db_cofig import supabase
 
 # Business logic for workers
 
