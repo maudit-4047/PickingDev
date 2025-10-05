@@ -1,10 +1,44 @@
 from typing import Optional, List, Dict
 from database.db_cofig import supabase
+import random
 
 # Business logic for workers
 
+PIN_MIN = 1000
+PIN_MAX = 9999
+TEAM_MAX_MEMBERS = 50
+
+def generate_unique_pin():
+    while True:
+        pin = random.randint(PIN_MIN, PIN_MAX)
+        response = supabase.table('workers').select('pin').eq('pin', pin).execute()
+        if not response.data:
+            return pin
+
+def get_or_create_team():
+    # Find a team with less than TEAM_MAX_MEMBERS
+    teams_response = supabase.table('teams').select('id').execute()
+    if hasattr(teams_response, 'error') and teams_response.error:
+        raise Exception(teams_response.error.message)
+    for team in teams_response.data:
+        count_response = supabase.table('workers').select('id', count='exact').eq('team_id', team['id']).execute()
+        if hasattr(count_response, 'error') and count_response.error:
+            raise Exception(count_response.error.message)
+        if count_response.count is not None and count_response.count < TEAM_MAX_MEMBERS:
+            return team['id']
+    # If all teams are full, create a new team
+    new_team_name = f"Team {len(teams_response.data) + 1}"
+    create_team_response = supabase.table('teams').insert({'name': new_team_name}).execute()
+    if hasattr(create_team_response, 'error') and create_team_response.error:
+        raise Exception(create_team_response.error.message)
+    return create_team_response.data[0]['id']
+
 def create_worker(data: Dict) -> Dict:
     data['status'] = 'active'
+    if 'pin' not in data or data['pin'] is None:
+        data['pin'] = generate_unique_pin()
+    if 'team_id' not in data or data['team_id'] is None:
+        data['team_id'] = get_or_create_team()
     response = supabase.table('workers').insert(data).execute()
     if hasattr(response, 'error') and response.error:
         raise Exception(response.error.message)
