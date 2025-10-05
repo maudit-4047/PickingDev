@@ -11,7 +11,7 @@ router = APIRouter()
 class WorkerCreate(BaseModel):
     name: str
     team_id: Optional[int] = None
-    pin: str
+    pin: int
     voice_ref: Optional[str] = None
     role: Optional[str] = 'picker'
 
@@ -19,7 +19,7 @@ class WorkerOut(BaseModel):
     id: int
     name: str
     team_id: Optional[int]
-    pin: str
+    pin: int
     voice_ref: Optional[str]
     status: str
     role: str
@@ -28,12 +28,12 @@ class WorkerOut(BaseModel):
 
 class LoginRequest(BaseModel):
     name: str
-    pin: str
+    pin: int
 
 class WorkerUpdate(BaseModel):
     name: Optional[str] = None
     team_id: Optional[int] = None
-    pin: Optional[str] = None
+    pin: Optional[int] = None
     voice_ref: Optional[str] = None
     role: Optional[str] = None
     status: Optional[str] = None
@@ -81,3 +81,25 @@ def login(request: LoginRequest = Body(...)):
         return {"token": token}
     except Exception as e:
         raise HTTPException(status_code=401, detail=str(e))
+
+@router.get('/workers/pin/{pin}', response_model=WorkerOut)
+def get_worker_by_pin(pin: int):
+    try:
+        return get_worker_logic(pin=pin)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.patch('/workers/pin/{pin}', response_model=WorkerOut)
+def update_worker_by_pin(pin: int, worker: WorkerUpdate):
+    try:
+        return update_worker_logic(pin, worker.dict(exclude_unset=True))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.delete('/workers/pin/{pin}', status_code=status.HTTP_204_NO_CONTENT)
+def delete_worker_by_pin(pin: int):
+    try:
+        delete_worker_logic(pin)
+        return None
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
