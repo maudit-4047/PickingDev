@@ -1,4 +1,7 @@
 
+-- PostgreSQL Schema for Supabase
+-- This file uses PostgreSQL-specific syntax
+
 CREATE TABLE workers (
 	id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 	name VARCHAR(100) NOT NULL,
