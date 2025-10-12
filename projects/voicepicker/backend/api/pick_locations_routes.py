@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Query
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'modules')))
@@ -17,7 +17,10 @@ from pick_locations import (
     get_location_issues as get_issues_logic,
     get_location_utilization_stats as get_stats_logic,
     get_aisle_summary as get_aisle_summary_logic,
-    find_items_in_locations as find_items_logic
+    find_items_in_locations as find_items_logic,
+    get_picker_locations as get_picker_locations_logic,
+    get_forklift_locations as get_forklift_locations_logic,
+    get_section_summary as get_section_summary_logic
 )
 
 router = APIRouter()
@@ -35,11 +38,14 @@ class PickLocationOut(BaseModel):
     id: int
     location_code: str
     zone_id: int
-    aisle: Optional[str]
-    bay: Optional[str]
+    section: str
+    aisle: str
+    bay: str
     level: Optional[str]
-    position: Optional[str]
+    subsection: Optional[str]
+    check_digit: int
     location_type: str
+    is_complex_aisle: bool
     capacity: int
     current_occupancy: int
     is_active: bool
@@ -49,6 +55,10 @@ class PickLocationOut(BaseModel):
     last_picked_at: Optional[str]
     created_at: str
     updated_at: str
+    # Additional computed fields
+    voice_friendly: Optional[str] = None
+    equipment_required: Optional[str] = None
+    parsed_components: Optional[Dict] = None
 
 class LocationInventoryOut(BaseModel):
     id: int
@@ -123,12 +133,14 @@ def get_location_zones():
 @router.get('/locations', response_model=List[PickLocationOut])
 def get_pick_locations(
     zone_id: Optional[int] = Query(None, description="Filter by zone ID"),
+    section: Optional[str] = Query(None, description="Filter by section (H, L, M, B, A)"),
     aisle: Optional[str] = Query(None, description="Filter by aisle"),
+    level: Optional[str] = Query(None, description="Filter by level (0, B, C, D, E, F)"),
     is_active: bool = Query(True, description="Filter by active status")
 ):
     """Get pick locations with optional filters"""
     try:
-        return get_locations_logic(zone_id=zone_id, aisle=aisle, is_active=is_active)
+        return get_locations_logic(zone_id=zone_id, aisle=aisle, is_active=is_active, section=section, level=level)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -152,10 +164,13 @@ def search_locations(search_term: str):
 
 # Get locations by aisle
 @router.get('/locations/aisle/{aisle}', response_model=List[PickLocationOut])
-def get_locations_by_aisle(aisle: str):
+def get_locations_by_aisle(
+    aisle: str,
+    section: Optional[str] = Query(None, description="Filter by section")
+):
     """Get all locations in a specific aisle"""
     try:
-        return get_aisle_locations_logic(aisle)
+        return get_aisle_locations_logic(aisle, section)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -248,5 +263,44 @@ def find_items_in_locations(item_code: str):
     """Find all locations where an item is stored"""
     try:
         return find_items_logic(item_code)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+# Get picker-only locations (level 0)
+@router.get('/locations/picker', response_model=List[PickLocationOut])
+def get_picker_locations(
+    section: Optional[str] = Query(None, description="Filter by section"),
+    aisle: Optional[str] = Query(None, description="Filter by aisle")
+):
+    """Get only picker-accessible locations (level 0)"""
+    try:
+        return get_picker_locations_logic(section=section, aisle=aisle)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+# Get forklift-only locations (levels B-F)
+@router.get('/locations/forklift', response_model=List[PickLocationOut])
+def get_forklift_locations(
+    section: Optional[str] = Query(None, description="Filter by section"),
+    aisle: Optional[str] = Query(None, description="Filter by aisle")
+):
+    """Get only forklift-accessible locations (levels B-F)"""
+    try:
+        return get_forklift_locations_logic(section=section, aisle=aisle)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+class SectionSummary(BaseModel):
+    section: LocationZoneOut
+    total_locations: int
+    picker_locations: int
+    forklift_locations: int
+
+# Get section summary
+@router.get('/locations/sections/summary', response_model=List[SectionSummary])
+def get_section_summary():
+    """Get summary of all warehouse sections with their statistics"""
+    try:
+        return get_section_summary_logic()
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

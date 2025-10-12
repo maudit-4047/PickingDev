@@ -1,6 +1,14 @@
 from typing import Optional, List, Dict
 from database.db_cofig import supabase
 from datetime import datetime
+from location_utils import (
+    validate_location_code, 
+    generate_location_code, 
+    generate_check_digit,
+    get_voice_friendly_location,
+    get_equipment_required,
+    is_complex_aisle
+)
 
 # Pick Locations Management Module
 
@@ -11,7 +19,7 @@ def get_all_zones() -> List[Dict]:
         raise Exception(response.error.message)
     return response.data
 
-def get_pick_locations(zone_id: int = None, aisle: str = None, is_active: bool = True) -> List[Dict]:
+def get_pick_locations(zone_id: int = None, aisle: str = None, is_active: bool = True, section: str = None, level: str = None) -> List[Dict]:
     """Get pick locations with optional filters"""
     query = supabase.table('pick_locations').select('*, location_zones(zone_name)')
     
@@ -21,36 +29,72 @@ def get_pick_locations(zone_id: int = None, aisle: str = None, is_active: bool =
         query = query.eq('zone_id', zone_id)
     if aisle is not None:
         query = query.eq('aisle', aisle)
+    if section is not None:
+        query = query.eq('section', section)
+    if level is not None:
+        query = query.eq('level', level)
     
     query = query.order('location_code')
     
     response = query.execute()
     if hasattr(response, 'error') and response.error:
         raise Exception(response.error.message)
+    
+    # Add voice-friendly format and equipment info
+    for location in response.data:
+        location['voice_friendly'] = get_voice_friendly_location(location['location_code'])
+        location['equipment_required'] = get_equipment_required(location['location_code'])
+    
     return response.data
 
 def get_location_by_code(location_code: str) -> Dict:
     """Get a specific location by its code"""
+    # Validate location code format first
+    try:
+        parsed = validate_location_code(location_code)
+    except ValueError as e:
+        raise Exception(f"Invalid location code: {str(e)}")
+    
     response = supabase.table('pick_locations').select('*, location_zones(zone_name)').eq('location_code', location_code).single().execute()
     if hasattr(response, 'error') and response.error:
         raise Exception('Location not found')
-    return response.data
+    
+    location = response.data
+    location['voice_friendly'] = get_voice_friendly_location(location['location_code'])
+    location['equipment_required'] = get_equipment_required(location['location_code'])
+    location['parsed_components'] = parsed
+    
+    return location
 
 def search_locations(search_term: str) -> List[Dict]:
-    """Search locations by code, aisle, or description"""
+    """Search locations by code, section, aisle, or description"""
     query = supabase.table('pick_locations').select('*, location_zones(zone_name)')
-    # Use ilike for case-insensitive search
-    query = query.or_(f'location_code.ilike.%{search_term}%,aisle.ilike.%{search_term}%')
+    # Use ilike for case-insensitive search across multiple fields
+    search_conditions = [
+        f'location_code.ilike.%{search_term}%',
+        f'section.ilike.%{search_term}%',
+        f'aisle.ilike.%{search_term}%'
+    ]
+    query = query.or_(','.join(search_conditions))
     query = query.eq('is_active', True).order('location_code')
     
     response = query.execute()
     if hasattr(response, 'error') and response.error:
         raise Exception(response.error.message)
+    
+    # Add voice-friendly format
+    for location in response.data:
+        location['voice_friendly'] = get_voice_friendly_location(location['location_code'])
+        location['equipment_required'] = get_equipment_required(location['location_code'])
+    
     return response.data
 
-def get_locations_by_aisle(aisle: str) -> List[Dict]:
+def get_locations_by_aisle(aisle: str, section: str = None) -> List[Dict]:
     """Get all locations in a specific aisle"""
-    return get_pick_locations(aisle=aisle)
+    if section:
+        return get_pick_locations(aisle=aisle, section=section)
+    else:
+        return get_pick_locations(aisle=aisle)
 
 def get_location_inventory(location_id: int = None, location_code: str = None) -> List[Dict]:
     """Get inventory for a specific location"""
@@ -230,10 +274,96 @@ def get_aisle_summary() -> List[Dict]:
 
 def find_items_in_locations(item_code: str) -> List[Dict]:
     """Find all locations where an item is stored"""
-    query = supabase.table('location_inventory').select('*, pick_locations(location_code, aisle, bay, level)')
+    query = supabase.table('location_inventory').select('*, pick_locations(location_code, section, aisle, bay, level)')
     query = query.eq('item_code', item_code).gt('quantity', 0)
     
     response = query.execute()
     if hasattr(response, 'error') and response.error:
         raise Exception(response.error.message)
+    
+    # Add voice-friendly format for each location
+    for item in response.data:
+        if item.get('pick_locations'):
+            location_code = item['pick_locations']['location_code']
+            item['voice_friendly'] = get_voice_friendly_location(location_code)
+            item['equipment_required'] = get_equipment_required(location_code)
+    
     return response.data
+
+def get_picker_locations(section: str = None, aisle: str = None) -> List[Dict]:
+    """Get only picker-accessible locations (level 0 or no level specified)"""
+    query = supabase.table('pick_locations').select('*, location_zones(zone_name)')
+    query = query.eq('is_active', True).eq('is_pickable', True)
+    
+    # Filter for picker levels (level 0 or NULL)
+    query = query.or_('level.is.null,level.eq.0')
+    
+    if section:
+        query = query.eq('section', section)
+    if aisle:
+        query = query.eq('aisle', aisle)
+    
+    query = query.order('location_code')
+    
+    response = query.execute()
+    if hasattr(response, 'error') and response.error:
+        raise Exception(response.error.message)
+    
+    # Add voice-friendly format
+    for location in response.data:
+        location['voice_friendly'] = get_voice_friendly_location(location['location_code'])
+        location['equipment_required'] = 'manual'  # All picker locations are manual
+    
+    return response.data
+
+def get_forklift_locations(section: str = None, aisle: str = None) -> List[Dict]:
+    """Get only forklift-accessible locations (levels B-F)"""
+    query = supabase.table('pick_locations').select('*, location_zones(zone_name)')
+    query = query.eq('is_active', True)
+    
+    # Filter for forklift levels (B, C, D, E, F)
+    query = query.in_('level', ['B', 'C', 'D', 'E', 'F'])
+    
+    if section:
+        query = query.eq('section', section)
+    if aisle:
+        query = query.eq('aisle', aisle)
+    
+    query = query.order('location_code')
+    
+    response = query.execute()
+    if hasattr(response, 'error') and response.error:
+        raise Exception(response.error.message)
+    
+    # Add voice-friendly format
+    for location in response.data:
+        location['voice_friendly'] = get_voice_friendly_location(location['location_code'])
+        location['equipment_required'] = 'forklift'
+    
+    return response.data
+
+def get_section_summary() -> List[Dict]:
+    """Get summary of all warehouse sections with their statistics"""
+    sections_response = supabase.table('location_zones').select('*').eq('is_active', True).execute()
+    if hasattr(sections_response, 'error') and sections_response.error:
+        raise Exception(sections_response.error.message)
+    
+    summary = []
+    for section in sections_response.data:
+        # Get location count for this section
+        locations_response = supabase.table('pick_locations').select('id', count='exact').eq('zone_id', section['id']).eq('is_active', True).execute()
+        
+        # Get picker locations count (level 0)
+        picker_response = supabase.table('pick_locations').select('id', count='exact').eq('zone_id', section['id']).or_('level.is.null,level.eq.0').execute()
+        
+        # Get forklift locations count (levels B-F)
+        forklift_response = supabase.table('pick_locations').select('id', count='exact').eq('zone_id', section['id']).in_('level', ['B', 'C', 'D', 'E', 'F']).execute()
+        
+        summary.append({
+            'section': section,
+            'total_locations': locations_response.count or 0,
+            'picker_locations': picker_response.count or 0,
+            'forklift_locations': forklift_response.count or 0
+        })
+    
+    return summary
