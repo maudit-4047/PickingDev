@@ -13,7 +13,8 @@ from work_queue import (
     get_next_work_for_worker as get_next_work_logic,
     get_worker_current_work as get_current_work_logic,
     cancel_work_task as cancel_work_logic,
-    get_work_queue_stats as get_stats_logic
+    get_work_queue_stats as get_stats_logic,
+    get_work_by_role as get_work_by_role_logic
 )
 
 router = APIRouter()
@@ -25,13 +26,15 @@ class WorkTaskCreate(BaseModel):
     quantity_requested: int
     priority: Optional[int] = 5
     task_type: Optional[str] = 'pick'
+    required_role: Optional[str] = 'picker'  # Role required for this task
     estimated_time: Optional[int] = 0
     notes: Optional[str] = None
 
 class WorkTaskOut(BaseModel):
     id: int
     order_id: Optional[int]
-    worker_id: Optional[int]
+    worker_pin: Optional[int]  # Use PIN instead of worker_id
+    worker_name: Optional[str]  # Include worker name for display
     item_code: str
     location_code: str
     quantity_requested: int
@@ -39,6 +42,7 @@ class WorkTaskOut(BaseModel):
     priority: int
     status: str
     task_type: str
+    required_role: Optional[str]  # Role required for this task
     assigned_at: Optional[str]
     started_at: Optional[str]
     completed_at: Optional[str]
@@ -50,13 +54,16 @@ class WorkTaskOut(BaseModel):
 
 class WorkAssignment(BaseModel):
     work_queue_id: int
-    worker_id: int
+    worker_pin: int  # Use PIN instead of worker_id
 
 class WorkCompletion(BaseModel):
     work_queue_id: int
-    worker_id: int
+    worker_pin: int  # Use PIN instead of worker_id
     quantity_picked: int
     notes: Optional[str] = None
+
+class WorkByRole(BaseModel):
+    role: str  # Get work for specific role (picker, packer, etc.)
 
 class WorkStats(BaseModel):
     pending: int
@@ -77,13 +84,14 @@ def create_work_task(task: WorkTaskCreate):
 # Get work queue
 @router.get('/work-queue', response_model=List[WorkTaskOut])
 def get_work_queue(
-    worker_id: Optional[int] = Query(None, description="Filter by worker ID"),
+    worker_pin: Optional[int] = Query(None, description="Filter by worker PIN"),
+    role: Optional[str] = Query(None, description="Filter by required role (picker, packer, etc.)"),
     status: Optional[str] = Query(None, description="Filter by status (pending, assigned, picking, completed)"),
     priority_order: bool = Query(True, description="Order by priority")
 ):
     """Get work queue items with optional filters"""
     try:
-        return get_work_queue_logic(worker_id=worker_id, status=status, priority_order=priority_order)
+        return get_work_queue_logic(worker_pin=worker_pin, role=role, status=status, priority_order=priority_order)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -92,7 +100,7 @@ def get_work_queue(
 def assign_work_to_worker(assignment: WorkAssignment):
     """Assign a work task to a worker"""
     try:
-        return assign_work_logic(assignment.work_queue_id, assignment.worker_id)
+        return assign_work_logic(assignment.work_queue_id, assignment.worker_pin)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -101,7 +109,7 @@ def assign_work_to_worker(assignment: WorkAssignment):
 def start_work_task(assignment: WorkAssignment):
     """Start working on an assigned task"""
     try:
-        return start_work_logic(assignment.work_queue_id, assignment.worker_id)
+        return start_work_logic(assignment.work_queue_id, assignment.worker_pin)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -112,19 +120,28 @@ def complete_work_task(completion: WorkCompletion):
     try:
         return complete_work_logic(
             completion.work_queue_id, 
-            completion.worker_id, 
-            completion.quantity_picked,
+            completion.worker_pin, 
+            completion.items_picked, 
             completion.notes
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+# Get work by role
+@router.get('/work-queue/by-role/{role}', response_model=List[WorkTaskOut])
+def get_work_by_role(role: str, priority_order: bool = Query(True)):
+    """Get available work tasks for a specific role"""
+    try:
+        return get_work_by_role_logic(role=role, priority_order=priority_order)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 # Get next work for worker
-@router.get('/work-queue/next/{worker_id}', response_model=Optional[WorkTaskOut])
-def get_next_work_for_worker(worker_id: int):
+@router.get('/work-queue/next/{worker_pin}', response_model=Optional[WorkTaskOut])
+def get_next_work_for_worker(worker_pin: int):
     """Get the next work task for a worker (auto-assigns if available)"""
     try:
-        result = get_next_work_logic(worker_id)
+        result = get_next_work_logic(worker_pin)
         if result is None:
             raise HTTPException(status_code=404, detail="No work available")
         return result
@@ -134,11 +151,11 @@ def get_next_work_for_worker(worker_id: int):
         raise HTTPException(status_code=400, detail=str(e))
 
 # Get worker's current work
-@router.get('/work-queue/worker/{worker_id}', response_model=List[WorkTaskOut])
-def get_worker_current_work(worker_id: int):
+@router.get('/work-queue/worker/{worker_pin}', response_model=List[WorkTaskOut])
+def get_worker_current_work(worker_pin: int):
     """Get all current work items for a worker"""
     try:
-        return get_current_work_logic(worker_id)
+        return get_current_work_logic(worker_pin)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

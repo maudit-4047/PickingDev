@@ -3,8 +3,11 @@ from pydantic import BaseModel
 from typing import List, Optional
 import sys
 import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'modules')))
-from auth import create_worker as create_worker_logic, get_workers as get_workers_logic, get_worker as get_worker_logic, update_worker as update_worker_logic, delete_worker as delete_worker_logic, login_worker as login_worker_logic
+
+# Add parent directory to path for imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from modules.auth import create_worker as create_worker_logic, get_workers as get_workers_logic, get_worker as get_worker_logic, update_worker as update_worker_logic, delete_worker as delete_worker_logic, login_worker as login_worker_logic
 
 router = APIRouter()
 

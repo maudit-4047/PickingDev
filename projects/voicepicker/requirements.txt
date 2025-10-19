@@ -1,0 +1,44 @@
+# VoicePicker Warehouse Management System - Requirements
+
+## Core Dependencies
+fastapi==0.118.0              # Web framework for building APIs
+uvicorn[standard]==0.37.0      # ASGI server to run FastAPI apps
+pydantic==2.11.9              # Data validation and settings management
+python-dotenv==1.1.1          # Load environment variables from .env files
+
+## Database
+supabase==2.21.1              # Official Python client for Supabase API
+sqlalchemy==2.0.43            # ORM for database models and queries (legacy support)
+psycopg2-binary==2.9.10       # PostgreSQL database driver
+alembic==1.16.5               # Database migrations for SQLAlchemy
+
+## Enhanced Security
+passlib[argon2]==1.7.4        # Password hashing with Argon2 (industry standard)
+bcrypt==5.0.0                 # Fallback password hashing (legacy support)
+PyJWT==2.10.1                 # JWT token generation and validation
+
+## Two-Factor Authentication (2FA)
+pyotp==2.9.0                  # Time-based One-Time Passwords (TOTP)
+qrcode[pil]==8.2              # QR code generation for 2FA setup
+pillow==12.0.0                # Image processing for QR codes
+
+## Rate Limiting & Security
+slowapi==0.1.9               # Rate limiting for FastAPI
+secure==1.0.1                # Security headers middleware
+
+## Testing & Development
+pytest==8.4.2                # Testing framework
+pytest-asyncio               # Async test support
+httpx                        # HTTP client for testing APIs
+
+## Optional Production Dependencies
+# redis==5.0.1               # Session management (if using Redis)
+# fastapi-mail==1.4.1        # Email verification and password reset
+# fastapi-users[sqlalchemy]  # Advanced user management (future upgrade)
+# authlib==1.2.1            # OAuth2/OpenID Connect (future upgrade)
+
+## Development Tools (optional)
+# black                      # Code formatting
+# isort                      # Import sorting  
+# flake8                     # Code linting
+# mypy                       # Type checking
