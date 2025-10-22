@@ -1,5 +1,5 @@
 # 📦 PickingDev – Project Plans
-> Personal tools & tech experiments by a warehouse picker turned builder
+
 
 Welcome to the main hub of all ongoing and future project ideas under the **PickingDev** initiative. Every idea here is rooted in real warehouse life — built to solve real problems faced by casual workers, pickers, and sorters.
 
@@ -8,7 +8,6 @@ Welcome to the main hub of all ongoing and future project ideas under the **Pick
 ## ✅ Active Projects
 
 ### 1. **VoicePicker** 🎧
-Created by a real voice picker at Primary Connect (Woolworths Supply Chain & Logistics Division)
 
 Project Overview
 This project is an all-in-one Warehouse Management System (WMS) inspired by real daily operations at Primary Connect. It features built-in support for voice-driven picking, modular backend architecture, real-time inventory and dispatch updates, and a team leader dashboard.
@@ -49,12 +48,6 @@ An urge interruption tool to help warehouse workers struggling with gambling add
 
 ---
 
-### 5. **SortTheBag (Future)** 📦
-Parcel sorter enhancement project to assist night shift workers in identifying parcel types, locations, and error detection.
-
-- scanning tool to scan barcodes
-- Alert on mis-sort or damaged parcels
-- Guided sort zones for new workers
 
 ---
 
